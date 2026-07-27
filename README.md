@@ -42,7 +42,7 @@ python -m lerobot.async_inference.policy_server \
     --fps=30 \
     --enable_rtc=true \
     --rtc_execution_horizon=20 \
-    --inference-latency=0
+    --inference_latency=0
 ```
 
 RTC flags added by this change (all optional, from `configs.py`):
@@ -50,7 +50,11 @@ RTC flags added by this change (all optional, from `configs.py`):
 - `--rtc_execution_horizon N` — override the execution horizon (default: checkpoint value, else `RTCConfig` default).
 - `--rtc_reset_gap_s S` — flush the cached chunk when an observation arrives >S s late, e.g. after homing / pause-resume (default `0.5`; `0` disables).
 
-(`--host` / `--port` / `--fps` / `--inference-latency` are pre-existing server flags.)
+(`--host` / `--port` / `--fps` / `--inference_latency` are pre-existing server flags. Use the
+underscore — draccus rejects `--inference-latency`. `--inference_latency` is in **seconds**, not
+steps: a per-response pacing target (`time.sleep` pads each reply up to this duration; default
+`1/fps` ≈ 0.033s; `0` disables the padding). It is unrelated to the RTC `inference_delay`, which is
+in control **steps** and is derived from the actual observation→inference elapsed time.)
 
 ### 2. Client — on the robot (`lerobot-inference`, from the separate `orin_rollout` repo)
 
