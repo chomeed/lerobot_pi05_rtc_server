@@ -19,23 +19,55 @@ live files under `lerobot/` — this folder is just a visible index of them.
 
 ## How to run
 
-Run from the `lerobot/` directory.
+The example commands below are the actual ones used for a `board_insertion`
+pi05 RTC eval (server on the workstation, client on the robot).
+
+### 1. Server — on the workstation (this repo)
+
+Run from the `lerobot/` directory. The server loads the checkpoint and applies
+RTC guidance.
 
 ```bash
-# Force-enable RTC on a pi05 checkpoint that shipped rtc_config=null
 python -m lerobot.async_inference.policy_server \
-    --enable_rtc \
-    --rtc_execution_horizon 10 \
-    --rtc_reset_gap_s 0.5
+    --host=0.0.0.0 \
+    --port=8080 \
+    --fps=30 \
+    --enable_rtc=true \
+    --rtc_execution_horizon=20 \
+    --inference-latency=0
 ```
 
-Flags (all optional, from `configs.py`):
+RTC flags added by this change (all optional, from `configs.py`):
 - `--enable_rtc` — force RTC on even if the checkpoint's `rtc_config` is null/disabled. No effect on non-RTC policies (e.g. ACT).
 - `--rtc_execution_horizon N` — override the execution horizon (default: checkpoint value, else `RTCConfig` default).
 - `--rtc_reset_gap_s S` — flush the cached chunk when an observation arrives >S s late, e.g. after homing / pause-resume (default `0.5`; `0` disables).
 
+(`--host` / `--port` / `--fps` / `--inference-latency` are pre-existing server flags.)
+
+### 2. Client — on the robot (`lerobot-inference`, from the separate `orin_rollout` repo)
+
 ```bash
-# Tests
+lerobot-inference \
+    --server-address 169.254.186.74:8080 \
+    --policy-type pi05 \
+    --pretrained-name-or-path /home/rllab4/workspace/chomeed/hdr_robot/policy_learning/outputs/sirius/board_insertion_pi05_sirius_round2 \
+    --task board_insertion \
+    --actions-per-chunk 30 \
+    --chunk-size-threshold 0.4 \
+    --mode insertion_15 \
+    --home-pose \
+    --rollout-dir /root/demo_data/speed_up_experiment_rtc_eval2 \
+    --dry-run \
+    --aggregate-fn-name latest_only
+```
+
+- **`--aggregate-fn-name latest_only`** is the key RTC setting — see the Client note below.
+- `--server-address` points at the workstation running the server; the server (not the client) loads `--pretrained-name-or-path`.
+- `--mode` / `--home-pose` / `--rollout-dir` / `--dry-run` are `orin_rollout` client flags, not part of this repo's `RobotClientConfig`.
+
+### Tests
+
+```bash
 python -m pytest tests/async_inference/test_policy_server.py
 ```
 
