@@ -24,10 +24,18 @@ pi05 RTC eval (server on the workstation, client on the robot).
 
 ### 1. Server — on the workstation (this repo)
 
-Run from the `lerobot/` directory. The server loads the checkpoint and applies
-RTC guidance.
+The server loads the checkpoint and applies RTC guidance. It **must be launched
+as a module** (`-m lerobot.async_inference.policy_server`), never by file path:
+`policy_server.py` uses package-relative imports (`from .configs import ...`), so
+`python .../policy_server.py` — or running the copy under `modified_files/` —
+fails with `ImportError: attempted relative import with no known parent package`.
+
+`lerobot` is editable-installed from this fork, so `-m` already works from any
+directory. To pin the absolute path explicitly (independent of what's installed),
+point `PYTHONPATH` at this fork's `src`:
 
 ```bash
+PYTHONPATH=/home/rllab4/workspace/chomeed/hdr_robot/policy_learning/lerobot_pi05_rtc_server/lerobot/src \
 python -m lerobot.async_inference.policy_server \
     --host=0.0.0.0 \
     --port=8080 \
@@ -56,7 +64,7 @@ lerobot-inference \
     --chunk-size-threshold 0.4 \
     --mode insertion_15 \
     --home-pose \
-    --rollout-dir /root/demo_data/speed_up_experiment_rtc_eval2 \
+    --rollout-dir /root/demo_data/legato_rtc\
     --dry-run \
     --aggregate-fn-name latest_only
 ```
