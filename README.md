@@ -49,6 +49,7 @@ RTC flags added by this change (all optional, from `configs.py`):
 - `--enable_rtc` — force RTC on even if the checkpoint's `rtc_config` is null/disabled. No effect on non-RTC policies (e.g. ACT).
 - `--rtc_execution_horizon N` — override the execution horizon (default: checkpoint value, else `RTCConfig` default).
 - `--rtc_reset_gap_s S` — flush the cached chunk when an observation arrives >S s late, e.g. after homing / pause-resume (default `0.5`; `0` disables).
+- `--rtc_inference_delay N` — pin the RTC `inference_delay` to a fixed number of **control steps** instead of deriving it from observation timestamps. Use when the robot/workstation clocks aren't NTP-synced, or when you have a stable measured latency (e.g. 200 ms at 30 fps → pin `6`). Default `None` = derive per observation. **The server logs both the pinned and derived values every chunk**, so you can watch how the timestamp estimate compares. Note the derived value is a lower bound (sampled before inference, so it excludes inference + the return trip) and can land one step high at exact boundaries due to float rounding (`0.2 / (1/30) = 6.0000…1 → ceil 7`).
 
 (`--host` / `--port` / `--fps` / `--inference_latency` are pre-existing server flags. Use the
 underscore — draccus rejects `--inference-latency`. `--inference_latency` is in **seconds**, not

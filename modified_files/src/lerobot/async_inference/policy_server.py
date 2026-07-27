@@ -519,8 +519,29 @@ class PolicyServer(services_pb2_grpc.AsyncInferenceServicer):
         # observation and now (chunk generation). This is the async analog of the sync rollout's
         # `ceil(latency / dt)`; we derive it from timestamps because there is no in-process latency
         # tracker on the server. Clamp to >= 0 (clock skew) and round up to match the sync `ceil`.
+        #
+        # This derived value is only a lower bound: it is sampled BEFORE inference, so it excludes
+        # the model's own inference time and the return trip, and it depends on client/server clock
+        # sync. `--rtc_inference_delay` pins a fixed step count instead (e.g. a stable measured
+        # latency), which is often more faithful than the derived value. We always log both so the
+        # derived estimate can be sanity-checked against the pinned/measured latency.
         elapsed_s = max(0.0, time.time() - observation_t.get_timestamp())
-        inference_delay = math.ceil(elapsed_s / self.config.environment_dt)
+        measured_delay = math.ceil(elapsed_s / self.config.environment_dt)
+
+        if self.config.rtc_inference_delay is not None:
+            inference_delay = self.config.rtc_inference_delay
+            self.logger.info(
+                f"RTC inference_delay={inference_delay} steps (pinned via --rtc_inference_delay) | "
+                f"derived={measured_delay} steps from {elapsed_s * 1000:.0f}ms "
+                f"(obs->pre-inference; excludes inference + return)"
+            )
+        else:
+            inference_delay = measured_delay
+            self.logger.info(
+                f"RTC inference_delay={inference_delay} steps (derived from timestamps) | "
+                f"{elapsed_s * 1000:.0f}ms elapsed (obs->pre-inference; excludes inference + return, "
+                f"needs synced clocks)"
+            )
 
         return {
             "prev_chunk_left_over": prev_chunk_left_over,

@@ -89,6 +89,15 @@ class PolicyServerConfig:
             "chunk after the gap then starts fresh (no stale guidance). Set 0 to disable."
         },
     )
+    rtc_inference_delay: int | None = field(
+        default=None,
+        metadata={
+            "help": "Pin the RTC inference_delay (in control steps) instead of deriving it from "
+            "observation timestamps. Use when client/server clocks are not synchronized, or when you "
+            "have a stable measured latency (e.g. 200 ms at 30 fps -> 6). If None, the delay is "
+            "derived per observation from (server_time - obs_timestamp) / environment_dt."
+        },
+    )
 
     def __post_init__(self):
         """Validate configuration after initialization."""
@@ -111,6 +120,11 @@ class PolicyServerConfig:
 
         if self.rtc_reset_gap_s < 0:
             raise ValueError(f"rtc_reset_gap_s must be non-negative, got {self.rtc_reset_gap_s}")
+
+        if self.rtc_inference_delay is not None and self.rtc_inference_delay < 0:
+            raise ValueError(
+                f"rtc_inference_delay must be non-negative, got {self.rtc_inference_delay}"
+            )
 
     @classmethod
     def from_dict(cls, config_dict: dict) -> "PolicyServerConfig":

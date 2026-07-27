@@ -453,6 +453,26 @@ def test_rtc_inference_delay_from_timestamps(rtc_server, monkeypatch):
     assert kwargs["inference_delay"] == 0
 
 
+def test_rtc_inference_delay_pinned_override(rtc_server, monkeypatch):
+    """`--rtc_inference_delay` pins inference_delay to a fixed step count, ignoring timestamps."""
+    dt = rtc_server.config.environment_dt
+    obs = _make_obs(torch.zeros(6), timestep=0)
+    obs.timestamp = 1000.0
+    # A timestamp diff that would derive 3 steps; the pin must override it.
+    monkeypatch.setattr(time, "time", lambda: 1000.0 + 2.4 * dt)
+
+    rtc_server.config.rtc_inference_delay = 6
+    assert rtc_server._compute_rtc_kwargs(obs)["inference_delay"] == 6
+
+    # A pin of 0 is valid (no frozen prefix) and still overrides the derived value.
+    rtc_server.config.rtc_inference_delay = 0
+    assert rtc_server._compute_rtc_kwargs(obs)["inference_delay"] == 0
+
+    # Back to None -> derived from timestamps again (2.4 steps -> ceil 3).
+    rtc_server.config.rtc_inference_delay = None
+    assert rtc_server._compute_rtc_kwargs(obs)["inference_delay"] == 3
+
+
 def test_rtc_disabled_policy_returns_empty_kwargs(policy_server):
     """A non-RTC policy gets an empty kwargs dict, so `predict_action_chunk` is called as before."""
     obs = _make_obs(torch.zeros(6), timestep=0)
